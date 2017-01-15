@@ -759,7 +759,6 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-
 	initscr();
 	cbreak();
 	keypad(stdscr, TRUE); /* for the arrow keys */
@@ -785,6 +784,20 @@ int main(int argc, char **argv)
 		if (c == 'q') break;
 
 		switch (c) {
+		case 'r':
+			/* FIXME: leaks memory like a sieve */
+			l = layout(configure(), 16);
+			if (!l) {
+				printw("layout() failed...\n");
+				anyexit(1);
+			}
+			if (!lopen(l, argv[1])) {
+				printw("lopen() failed...\n");
+				anyexit(1);
+			}
+			draw(l);
+			break;
+
 		case KEY_RIGHT: quant = 0; lmove(l,  1); break;
 		case KEY_LEFT:  quant = 0; lmove(l, -1); break;
 		case KEY_UP:    quant = 0; lmove(l, -1 * l->width); break;

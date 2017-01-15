@@ -26,6 +26,13 @@ Movement follows what you're accustomed to as a Vim user:
              Doesn't work with arrow keys.
 ```
 
+Other commands:
+
+```
+  q     Quit vex.
+  r     Reload configuration
+```
+
 Configuration
 -------------
 
