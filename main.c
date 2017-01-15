@@ -805,8 +805,8 @@ int main(int argc, char **argv)
 		case '8':
 		case '9': quant = quant * 10 + (c - '0'); break;
 
-		case '+': lmove(l,      quant); quant = 0; break;
-		case '-': lmove(l, -1 * quant); quant = 0; break;
+		case '+': lmove(l,      (quant ? quant : 1)); quant = 0; break;
+		case '-': lmove(l, -1 * (quant ? quant : 1)); quant = 0; break;
 
 		case 'h': lmove(l, -1 * (quant ? quant : 1));            quant = 0; break;
 		case 'j': lmove(l, -1 * (quant ? quant : 1) * l->width); quant = 0; break;
