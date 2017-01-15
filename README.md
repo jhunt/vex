@@ -176,6 +176,23 @@ Each additional `status` directive adds a new line to the status
 bar.  There is currently no way to affect alignment of the text in
 the status bar, but pull requests are welcome.
 
+
+Compiling from Source
+---------------------
+
+Either clone the git repo, or unpack the release tarball, `cd` in,
+and run `make`:
+
+```
+git clone https://github.com/jhunt/vex
+cd vex
+make
+./vex /bin/ls
+```
+
+Simple and effective.
+
+
 Contributing
 ------------
 
