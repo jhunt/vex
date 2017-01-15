@@ -61,6 +61,8 @@ typedef struct {
 } LAYOUT;
 /* }}} */
 /* utility functions {{{ */
+#define max(a,b) ((a) > (b) ? (a) : (b))
+#define min(a,b) ((a) < (b) ? (a) : (b))
 #define DATA_AT(l,plus) (DATA(l) + (plus))
 #define DATA(l) ((l)->data + (l)->offset)
 #define as(t,x) (*(t *)(x))
@@ -1046,8 +1048,7 @@ int searchin(uint8_t *haystack, int a, int b, int step, char *needle, size_t len
 
 	return 1;
 }
-#define max(a,b) ((a) > (b) ? (a) : (b))
-#define min(a,b) ((a) < (b) ? (a) : (b))
+
 void search(LAYOUT *l, char *pat)
 {
 	int rc, offset;
