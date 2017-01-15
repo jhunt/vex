@@ -239,28 +239,34 @@ static void fmt_sd(void *_, int width, void *_field)
 
 static void fmt_b(void *_, int width, void *_field)
 {
-	int left, i;
-	uint64_t v, mask;
+	int i;
+	uint64_t v;
 	LAYOUT *l;
 
 	l = (LAYOUT *)_;
-	left = l->len - (l->offset + l->pos);
 
-	mask = 0x80;
 	switch (width) {
-	case 8:  v = as_u8( DATA_AT(l, l->pos));              break;
-	case 16: v = as_u16(DATA_AT(l, l->pos)); mask <<= 8;  break;
-	case 32: v = as_u32(DATA_AT(l, l->pos)); mask <<= 24; break;
-	case 64: v = as_u64(DATA_AT(l, l->pos)); mask <<= 56; break;
+	case 8:
+	case 16:
+	case 32:
+	case 64: break;
 	default:
 		wprintw(l->status, "!!!");
 		return;
 	}
 
-	for (i = 0; i < width; i++) {
-		if (i && i % 4 == 0) waddch(l->status, ' ');
-		waddch(l->status, (v & mask != 0) ? '1' : '0');
-		v >>= 1;
+	for (i = 0; i < width / 8; i++) {
+		v = as_u8(DATA_AT(l, l->pos + i));
+		if (i != 0) waddch(l->status, ' ');
+		waddch(l->status, (v & 0x80) ? '1' : '0');
+		waddch(l->status, (v & 0x40) ? '1' : '0');
+		waddch(l->status, (v & 0x20) ? '1' : '0');
+		waddch(l->status, (v & 0x10) ? '1' : '0');
+		waddch(l->status, ' ');
+		waddch(l->status, (v & 0x08) ? '1' : '0');
+		waddch(l->status, (v & 0x04) ? '1' : '0');
+		waddch(l->status, (v & 0x02) ? '1' : '0');
+		waddch(l->status, (v & 0x01) ? '1' : '0');
 	}
 }
 
