@@ -26,6 +26,27 @@ Movement follows what you're accustomed to as a Vim user:
              Doesn't work with arrow keys.
 ```
 
+Searching (unsurprisingly) also works like vim:
+
+```
+   /   Start a forward search.  Type your (currently only ASCII)
+       search query, followed by <ENTER>, and vex will look for
+       that substring starting from the current position, with
+       wrap-around.
+
+       An empty search query repeats the last attempted search.
+
+   ?   Just like '/', except the search proceeds backwards through
+       the file, starting at the current position.  Also supports
+       wrap-around.
+
+   n   Repeat the last search, forward-ly.  This is faster than
+       having to type '/'+<ENTER>.
+
+   N   Repeat the last search, backward-ly.  This is faster than
+       having to type '?'+<ENTER>.
+```
+
 Other commands:
 
 ```

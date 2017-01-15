@@ -46,6 +46,8 @@ typedef struct {
 	int nfields;
 	WINDOW *status;  /* the status bar window (for drawing) */
 
+	WINDOW *command; /* the command window (errors, search, etc. */
+
 	const char *path;
 	const char *file;
 
@@ -101,12 +103,16 @@ int cfgcol(LAYOUT *l, COLUMN *c, prcell_fn pr, int x, int width, int space)
 #define C_STATUS_IDX 3
 #define C_STATUS COLOR_PAIR(C_STATUS_IDX) | A_BOLD
 
+#define C_ERROR_IDX 4
+#define C_ERROR COLOR_PAIR(C_ERROR_IDX) | A_BOLD
+
 static void the_colors()
 {
 	start_color();
 	init_pair(C_NORMAL_IDX, COLOR_WHITE, COLOR_BLACK);
 	init_pair(C_CURSOR_IDX, COLOR_BLACK, COLOR_WHITE);
 	init_pair(C_STATUS_IDX, COLOR_GREEN, COLOR_BLACK);
+	init_pair(C_ERROR_IDX,  COLOR_WHITE, COLOR_RED);
 }
 /* }}} */
 
@@ -594,6 +600,22 @@ CONFIG* configure()
 	return c;
 }
 
+void errorf(LAYOUT * l, const char *msg, ...)
+{
+	va_list ap;
+
+	wattron(l->command, C_ERROR);
+	werase(l->command);
+	wmove(l->command, 0, 0);
+
+	va_start(ap, msg);
+	vwprintw(l->command, msg, ap);
+	va_end(ap);
+
+	wattroff(l->command, C_ERROR);
+	wrefresh(l->command);
+}
+
 LAYOUT* layout(CONFIG *c, int width)
 {
 	LAYOUT *l;
@@ -607,9 +629,11 @@ LAYOUT* layout(CONFIG *c, int width)
 		if (c->status[i] == '\n') l->st_height++;
 	}
 
-	l->status = newwin(l->st_height, COLS, LINES - l->st_height, 0);
+	l->status = newwin(l->st_height, COLS, LINES - l->st_height - 1, 0);
 	wattron(l->status, C_STATUS);
 	wprintw(l->status, "%*s", COLS, "");
+
+	l->command = newwin(1, COLS, LINES - 1, 0);
 
 	l->nfields = parse_status(c->status, NULL);
 	if (l->nfields < 0) return NULL;
@@ -773,6 +797,115 @@ int lopen(LAYOUT *l, const char *path)
 	return 1;
 }
 
+int query(LAYOUT *l, char type, char *buf, size_t len)
+{
+	WINDOW *win;
+	size_t n;
+	int c;
+
+	win = newwin(1, COLS, LINES - 1, 0);
+	waddch(win, type);
+
+	n = 0;
+	for (;;) {
+		wrefresh(win);
+		c = getch();
+		if (c == KEY_ENTER || c == '\n' || c == '\r') {
+			/* we can re-use the last query ... */
+			if (n > 0) buf[n] = '\0';
+			return 0;
+		}
+		if (isprint(c)) {
+			buf[n++] = c;
+
+			if (n == len) {
+				errno = ENOBUFS;
+				return -1; /* error! */
+			}
+
+			waddch(win, c);
+			wrefresh(win);
+			continue;
+		}
+
+		printw("unrec. char code %02x\n", c);
+		refresh(); getch();
+	}
+}
+
+int searchin(uint8_t *haystack, int a, int b, int step, char *needle, size_t len, int *out)
+{
+	int i, ok;
+
+	/* FIXME: super dumb string search; look at boyer-moore */
+	for (; a >= 0 && a != b; a += step) {
+		if (haystack[a] != (uint8_t)(needle[0])) continue;
+
+		ok = 1;
+		for (i = 1; i < len; i++) {
+			if (haystack[a+i] != (uint8_t)(needle[i])) {
+				ok = 0;
+				break;
+			}
+		}
+		if (ok) {
+			*out = a;
+			return 0;
+		}
+	}
+
+	return 1;
+}
+#define max(a,b) ((a) > (b) ? (a) : (b))
+#define min(a,b) ((a) < (b) ? (a) : (b))
+void search(LAYOUT *l, char *pat)
+{
+	int rc, offset;
+	size_t len = strlen(pat);
+
+	if (len == 0) {
+		errorf(l, "No search query provided.");
+		return;
+	}
+
+	rc = searchin(l->data, l->offset + l->pos + 1, l->len - len, 1, pat, len, &offset);
+	if (rc == 0) {
+		lmove(l, offset - (l->offset + l->pos));
+		return;
+	}
+	rc = searchin(l->data, 0, min(l->offset + l->pos, l->len - len), 1, pat, len, &offset);
+	if (rc == 0) {
+		lmove(l, offset - (l->offset + l->pos));
+		return;
+	}
+
+	errorf(l, "Pattern not found: %s", pat);
+}
+
+void rsearch(LAYOUT *l, char *pat)
+{
+	int rc, offset;
+	size_t len = strlen(pat);
+
+	if (len == 0) {
+		errorf(l, "No search query provided.");
+		return;
+	}
+
+	rc = searchin(l->data, l->offset + l->pos - 1, 0, -1, pat, len, &offset);
+	if (rc == 0) {
+		lmove(l, offset - (l->offset + l->pos));
+		return;
+	}
+	rc = searchin(l->data, l->len - len, l->offset + l->pos, -1, pat, len, &offset);
+	if (rc == 0) {
+		lmove(l, offset - (l->offset + l->pos));
+		return;
+	}
+
+	errorf(l, "Pattern not found: %s", pat);
+}
+
 int main(int argc, char **argv)
 {
 	LAYOUT *l;
@@ -802,6 +935,7 @@ int main(int argc, char **argv)
 	draw(l);
 
 	int quant = 0;
+	char q[8192] = {0};
 	for (;;) {
 		int c = getch();
 		if (c == 'q') break;
@@ -820,6 +954,11 @@ int main(int argc, char **argv)
 			}
 			draw(l);
 			break;
+
+		case 'n':  search(l, q); break;
+		case 'N': rsearch(l, q); break;
+		case '/': if (query(l, '/', q, 8192) == 0)  search(l, q); break;
+		case '?': if (query(l, '?', q, 8192) == 0) rsearch(l, q); break;
 
 		case KEY_RIGHT: quant = 0; lmove(l,  1); break;
 		case KEY_LEFT:  quant = 0; lmove(l, -1); break;
