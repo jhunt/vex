@@ -163,12 +163,11 @@ static void pr_oct_pretty(WINDOW *w, uint8_t v) /* {{{ */
 }
 /* }}} */
 
-static void fmt_literal(void *l, int width, void *_field)
+static void fmt_literal(void *l, int width, void *_field) /* {{{ */
 {
 	wprintw(((LAYOUT *)l)->status, "%s", ((FIELD*)_field)->literal);
-}
-
-static void fmt_ud(void *_, int width, void *_field)
+} /* }}} */
+static void fmt_ud(void *_, int width, void *_field) /* {{{ */
 {
 	int left;
 	LAYOUT *l;
@@ -199,9 +198,8 @@ static void fmt_ud(void *_, int width, void *_field)
 		wprintw(l->status, "!!!");
 		break;
 	}
-}
-
-static void fmt_sd(void *_, int width, void *_field)
+} /* }}} */
+static void fmt_sd(void *_, int width, void *_field) /* {{{ */
 {
 	int left;
 	LAYOUT *l;
@@ -232,9 +230,8 @@ static void fmt_sd(void *_, int width, void *_field)
 		wprintw(l->status, "!!!");
 		break;
 	}
-}
-
-static void fmt_b(void *_, int width, void *_field)
+} /* }}} */
+static void fmt_b(void *_, int width, void *_field) /* {{{ */
 {
 	int i;
 	uint64_t v;
@@ -265,9 +262,8 @@ static void fmt_b(void *_, int width, void *_field)
 		waddch(l->status, (v & 0x02) ? '1' : '0');
 		waddch(l->status, (v & 0x01) ? '1' : '0');
 	}
-}
-
-static void fmt_E(void *_, int width, void *_fields)
+} /* }}} */
+static void fmt_E(void *_, int width, void *_field) /* {{{ */
 {
 	LAYOUT *l;
 	uint8_t buf[2] = { 0xba, 0xab };
@@ -286,41 +282,36 @@ static void fmt_E(void *_, int width, void *_fields)
 		else if (width == 0) wprintw(l->status, "little-endian");
 		else                 wprintw(l->status, "!!!");
 	}
-}
-
-static void fmt_o(void *_, int width, void *_field)
+} /* }}} */
+static void fmt_o(void *_, int width, void *_field) /* {{{ */
 {
 	LAYOUT *l;
 
 	l = (LAYOUT *)_;
 	wprintw(l->status, "%ld", l->offset + l->pos);
-}
-
-static void fmt_l(void *_, int width, void *_field)
+} /* }}} */
+static void fmt_l(void *_, int width, void *_field) /* {{{ */
 {
 	LAYOUT *l;
 
 	l = (LAYOUT *)_;
 	wprintw(l->status, "%ld", l->len);
-}
-
-static void fmt_F(void *_, int width, void *_field)
+} /* }}} */
+static void fmt_F(void *_, int width, void *_field) /* {{{ */
 {
 	LAYOUT *l;
 
 	l = (LAYOUT *)_;
 	wprintw(l->status, "%s", l->file);
-}
-
-static void fmt_P(void *_, int width, void *_field)
+} /* }}} */
+static void fmt_P(void *_, int width, void *_field) /* {{{ */
 {
 	LAYOUT *l;
 
 	l = (LAYOUT *)_;
 	wprintw(l->status, "%s", l->path);
-}
-
-static void fmt_T(void *_, int width, void *_field)
+} /* }}} */
+static void fmt_T(void *_, int width, void *_field) /* {{{ */
 {
 	int left, i;
 	LAYOUT *l;
@@ -351,9 +342,8 @@ static void fmt_T(void *_, int width, void *_field)
 			wprintw(l->status, "%02x", as_u8(DATA_AT(l, l->pos + i)));
 		}
 	}
-}
-
-static void fmt_x(void *_, int width, void *_field)
+} /* }}} */
+static void fmt_x(void *_, int width, void *_field) /* {{{ */
 {
 	int left, i;
 	LAYOUT *l;
@@ -370,9 +360,8 @@ static void fmt_x(void *_, int width, void *_field)
 			wprintw(l->status, "%02x", as_u8(DATA_AT(l, l->pos + i)));
 		}
 	}
-}
-
-static void fmt_f(void *_, int width, void *_field)
+} /* }}} */
+static void fmt_f(void *_, int width, void *_field) /* {{{ */
 {
 	int left;
 	LAYOUT *l;
@@ -393,9 +382,8 @@ static void fmt_f(void *_, int width, void *_field)
 		wprintw(l->status, "!!!");
 		break;
 	}
-}
-
-static void fmt_e(void *_, int width, void *_field)
+} /* }}} */
+static void fmt_e(void *_, int width, void *_field) /* {{{ */
 {
 	int left;
 	LAYOUT *l;
@@ -416,7 +404,7 @@ static void fmt_e(void *_, int width, void *_field)
 		wprintw(l->status, "!!!");
 		break;
 	}
-}
+} /* }}} */
 
 int parse_status(const char *s, FIELD *fields)
 {
