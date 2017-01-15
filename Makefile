@@ -1,5 +1,5 @@
 LDLIBS := -lncurses
-CFLAGS := -g
+CFLAGS := -g -Wall
 
 all: vex
 clean:

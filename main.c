@@ -1,3 +1,5 @@
+#include <sys/types.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <ncurses.h>
 #include <string.h>
@@ -69,12 +71,6 @@ typedef struct {
 #define as_i64(x) as(int64_t,  x)
 #define as_f32(x) as(float,    x)
 #define as_f64(x) as(double,   x)
-
-static char hexdig(int v)
-{
-	if (v < 10) return v + '0';
-	return v - 10 + 'a';
-}
 
 static void anyexit(int rc)
 {
