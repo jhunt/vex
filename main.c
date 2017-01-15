@@ -7,10 +7,19 @@
 #include <ctype.h>
 #include <sys/mman.h>
 
+#define CONFIG_ENVVAR   "VEXRC"
+#define CONFIG_USERFILE ".vexrc"
+#define CONFIG_SYSFILE  "/etc/vexrc"
+
 /* formatting constants {{{ */
 #define GUTTER 5
 /* }}} */
 /* TYPES {{{ */
+typedef struct {
+	char *layout;
+	char *status;
+} CONFIG;
+
 typedef void (*prcell_fn)(WINDOW *w, uint8_t v);
 typedef struct {
 	WINDOW     *win;
@@ -284,6 +293,14 @@ static void fmt_o(void *_, int width, void *_field)
 	wprintw(l->status, "%ld", l->offset + l->pos);
 }
 
+static void fmt_l(void *_, int width, void *_field)
+{
+	LAYOUT *l;
+
+	l = (LAYOUT *)_;
+	wprintw(l->status, "%ld", l->len);
+}
+
 static void fmt_F(void *_, int width, void *_field)
 {
 	LAYOUT *l;
@@ -432,6 +449,7 @@ int parse_status(const char *s, FIELD *fields)
 		case 'b': if (fields) fields[nfields].fmt = fmt_b; break;
 		case 'E': if (fields) fields[nfields].fmt = fmt_E; break;
 		case 'o': if (fields) fields[nfields].fmt = fmt_o; break;
+		case 'l': if (fields) fields[nfields].fmt = fmt_l; break;
 		case 'F': if (fields) fields[nfields].fmt = fmt_F; break;
 		case 'P': if (fields) fields[nfields].fmt = fmt_P; break;
 
@@ -455,14 +473,103 @@ int parse_status(const char *s, FIELD *fields)
 void statusbar(LAYOUT *l)
 {
 	int i;
-	wclear(l->status);
+	werase(l->status);
+	wmove(l->status, 0, 0);
 	for (i = 0; i < l->nfields; i++) {
 		(*l->fields[i].fmt)(l, l->fields[i].width, &l->fields[i]);
 	}
 	wnoutrefresh(l->status);
 }
 
-LAYOUT* layout(const char *str, const char *status, int width)
+FILE *find_config()
+{
+	FILE *io;
+	char *env, path[8192];
+	int n;
+
+	env = getenv("VEXRC");
+	if (env) {
+		io = fopen(env, "r");
+		if (io) return io;
+	}
+
+	env = getenv("HOME");
+	if (env) {
+		n = snprintf(path, 8192, "%s/" CONFIG_USERFILE, env);
+		if (n < 8192) {
+			io = fopen(path, "r");
+			if (io) return io;
+		}
+	}
+
+	return fopen(CONFIG_SYSFILE, "r");
+}
+
+CONFIG* configure()
+{
+	FILE *io;
+	CONFIG *c;
+	char buf[8192];
+	int line;
+
+	c = calloc(1, sizeof(CONFIG));
+	io = find_config();
+	if (!io) {
+		c->layout = strdup("Xa");
+		c->status = strdup("vex [%1E] +%o/%l %F ... b[ %64b ]");
+		return c;
+	}
+
+	line = 0;
+	while (fgets(buf, 8192, io) != NULL) {
+		char *a, *b;
+
+		line++;
+
+		a = strchr(buf, '\n');
+		if (a) *a = '\0';
+
+		for (a = &buf[0];  isspace(*a); a++);
+		if (!*a || *a == '#') continue;
+		for (b = a;       !isspace(*b); b++);
+		*b++ = '\0';
+
+		if (strcmp(a, "layout") == 0) {
+			for (a = b; isspace(*a); a++);
+			free(c->layout);
+			c->layout = strdup(a);
+			continue;
+		}
+		if (strcmp(a, "status") == 0) {
+			for (a = b; isspace(*a); a++);
+			if (c->status && strlen(c->status) > 0) {
+				b = calloc(strlen(c->status) + 1 + strlen(a) + 1, sizeof(char));
+				if (!b) {
+					printw("memory allocation failed while configuring statusbar.\n");
+					anyexit(1);
+				}
+				sprintf(b, "%s\n%s", c->status, a);
+				c->status = b;
+
+			} else {
+				c->status = strdup(a);
+				if (!c->status) {
+					printw("memory allocation failed while configuring statusbar.\n");
+					anyexit(1);
+				}
+			}
+			continue;
+		}
+
+		printw("Invalid configuration on line %d: '%s'\n", line, buf);
+		anyexit(1);
+	}
+
+	fclose(io);
+	return c;
+}
+
+LAYOUT* layout(CONFIG *c, int width)
 {
 	LAYOUT *l;
 	int i, x;
@@ -470,17 +577,21 @@ LAYOUT* layout(const char *str, const char *status, int width)
 	l = calloc(1, sizeof(LAYOUT));
 	if (!l) return NULL;
 
-	l->st_height = 2;
+	l->st_height = 1;
+	for (i = 0; i < strlen(c->status); i++) {
+		if (c->status[i] == '\n') l->st_height++;
+	}
+
 	l->status = newwin(l->st_height, COLS, LINES - l->st_height, 0);
 	wattron(l->status, C_STATUS);
 	wprintw(l->status, "%*s", COLS, "");
 
-	l->nfields = parse_status(status, NULL);
+	l->nfields = parse_status(c->status, NULL);
 	if (l->nfields < 0) return NULL;
 	l->fields = calloc(l->nfields, sizeof(FIELD));
-	parse_status(status, l->fields);
+	parse_status(c->status, l->fields);
 
-	l->ncol = strlen(str);
+	l->ncol = strlen(c->layout);
 	l->main_height = LINES - l->st_height;
 	l->width = width;
 	l->columns = calloc(l->ncol, sizeof(COLUMN));
@@ -489,14 +600,14 @@ LAYOUT* layout(const char *str, const char *status, int width)
 
 	x = 1;
 	for (i = 0; i < l->ncol; i++) {
-		switch (str[i]) {
+		switch (c->layout[i]) {
 		case 'X': x += cfgcol(l, &l->columns[i], pr_hex_pretty, x, 3, 1); break;
 		case 'x': x += cfgcol(l, &l->columns[i], pr_hex,        x, 3, 1); break;
 		case 'a': x += cfgcol(l, &l->columns[i], pr_ascii,      x, 1, 0); break;
 		case 'O': x += cfgcol(l, &l->columns[i], pr_oct_pretty, x, 4, 1); break;
 		case 'o': x += cfgcol(l, &l->columns[i], pr_oct,        x, 4, 1); break;
 		default:
-			printw("bad layout type '%c'\n", str[i]);
+			printw("bad layout type '%c'\n", c->layout[i]);
 			anyexit(1);
 			break;
 		}
@@ -528,15 +639,56 @@ void draw(LAYOUT *l)
 	doupdate();
 }
 
-void lmove(LAYOUT *l, int delta)
+void lpage(LAYOUT *l, int delta)
 {
-	int i, x, y, newY;
+	int page = l->width * l->main_height;
 
-	/* FIXME: assuming no need for page shifting */
-	y = l->pos / l->width;
-	if (l->pos + delta < 0) {
+	delta *= page;
+	if (delta < 0) {
+		if (-1 * delta > l->offset) {
+			l->offset = 0;
+			draw(l);
+			return;
+		}
+	} else if (l->offset + delta > (l->len + 1) - ((l->len + 1) % page)) {
+		l->offset = (l->len + 1) - ((l->len + 1) % page);
+		draw(l);
 		return;
 	}
+
+	l->offset += delta;
+	if (l->offset >= l->len) {
+		l->offset = l->len - 1;
+	}
+	draw(l);
+}
+
+void lmove(LAYOUT *l, int delta)
+{
+	int i, x, y, new, max;
+
+	/* FIXME: assuming no need for page shifting */
+	new = l->offset + l->pos + delta;
+	if (new >= l->len) delta = l->len - (l->offset + l->pos) - 1;
+	if (delta == 0 || new < 0) return;
+
+	new = l->pos + delta;
+	max = l->main_height * l->width;
+	if (new < 0 || new >= max) {
+		while (new < 0 && l->offset >= l->width) { /* page up */
+			l->offset -= l->width;
+			new += l->width;
+		}
+		while (new >= max) { /* page down */
+			l->offset += l->width;
+			new -= l->width;
+		}
+		l->pos = new;
+		draw(l);
+		return;
+	}
+
+	y = l->pos / l->width;
 
 	for (i = 0; i < l->ncol; i++) {
 		x = (l->pos - (y * l->width)) * l->columns[i].width;
@@ -605,6 +757,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
+
 	initscr();
 	cbreak();
 	keypad(stdscr, TRUE); /* for the arrow keys */
@@ -613,7 +766,7 @@ int main(int argc, char **argv)
 	the_colors();
 	refresh();
 
-	l = layout("XxOa", "w(%16ud / %16sd) d(%32ud / %32sd) q(%64ud / %64sd) f(%32e / %64e)\n%F (%P)", 16);
+	l = layout(configure(), 16);
 	if (!l) {
 		printw("layout() failed...\n");
 		anyexit(1);
@@ -634,6 +787,7 @@ int main(int argc, char **argv)
 		case KEY_LEFT:  quant = 0; lmove(l, -1); break;
 		case KEY_UP:    quant = 0; lmove(l, -1 * l->width); break;
 		case KEY_DOWN:  quant = 0; lmove(l,      l->width); break;
+
 		case '0':
 		case '1':
 		case '2':
@@ -644,8 +798,30 @@ int main(int argc, char **argv)
 		case '7':
 		case '8':
 		case '9': quant = quant * 10 + (c - '0'); break;
+
 		case '+': lmove(l,      quant); quant = 0; break;
 		case '-': lmove(l, -1 * quant); quant = 0; break;
+
+		case 'h': lmove(l, -1 * (quant ? quant : 1));            quant = 0; break;
+		case 'j': lmove(l, -1 * (quant ? quant : 1) * l->width); quant = 0; break;
+		case 'k': lmove(l,      (quant ? quant : 1) * l->width); quant = 0; break;
+		case 'l': lmove(l,      (quant ? quant : 1));            quant = 0; break;
+
+		case 'U' & 037:
+			if (l->pos < l->width || l->pos >= l->width * (l->main_height - 1)) {
+				lpage(l, -1);
+			} else {
+				lmove(l, -1 * (l->width * l->main_height) / 2);
+			}
+			break;
+
+		case 'D' & 037:
+			if (l->pos < l->width || l->pos >= l->width * (l->main_height - 1)) {
+				lpage(l, 1);
+			} else {
+				lmove(l, (l->width * l->main_height) / 2);
+			}
+			break;
 		}
 	}
 	endwin();

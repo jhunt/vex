@@ -1,7 +1,11 @@
 LDLIBS := -lncurses
 CFLAGS := -g
 
-main: main.o
+all: vex
 clean:
 	rm -f *.o main
 
+vex: main.o
+	$(CC) $< $(LDLIBS) -o $@
+
+.PHONY: all clean
