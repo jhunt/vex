@@ -75,6 +75,97 @@ typedef struct {
 #define as_f32(x) as(float,    x)
 #define as_f64(x) as(double,   x)
 
+int pop8(uint8_t x)
+{
+	x = (x & 0x55) + ((x >> 1) & 0x55);
+	x = (x & 0x33) + ((x >> 2) & 0x33);
+	x = (x & 0x0f) + ((x >> 4) & 0x0f);
+	return x;
+}
+int pop16(uint16_t x)
+{
+	x = (x & 0x5555) + ((x >> 1) & 0x5555);
+	x = (x & 0x3333) + ((x >> 2) & 0x3333);
+	x = (x & 0x0f0f) + ((x >> 4) & 0x0f0f);
+	x = (x & 0x00ff) + ((x >> 8) & 0x00ff);
+	return x;
+}
+int pop32(uint32_t x)
+{
+	x = (x & 0x55555555) + ((x >>  1) & 0x55555555);
+	x = (x & 0x33333333) + ((x >>  2) & 0x33333333);
+	x = (x & 0x0f0f0f0f) + ((x >>  4) & 0x0f0f0f0f);
+	x = (x & 0x0f0f0f0f) + ((x >>  8) & 0x0f0f0f0f);
+	x = (x & 0x00ff00ff) + ((x >> 16) & 0x00ff00ff);
+	return x;
+}
+int pop64(uint64_t x)
+{
+	x = (x & 0x5555555555555555) + ((x >>  1) & 0x5555555555555555);
+	x = (x & 0x3333333333333333) + ((x >>  2) & 0x3333333333333333);
+	x = (x & 0x0f0f0f0f0f0f0f0f) + ((x >>  4) & 0x0f0f0f0f0f0f0f0f);
+	x = (x & 0x00ff00ff00ff00ff) + ((x >>  8) & 0x00ff00ff00ff00ff);
+	x = (x & 0x0000ffff0000ffff) + ((x >> 16) & 0x0000ffff0000ffff);
+	x = (x & 0x00000000ffffffff) + ((x >> 32) & 0x00000000ffffffff);
+	return x;
+}
+
+int clz8(uint8_t x)
+{
+	uint8_t y;
+	int n;
+
+	n = 8;
+	y = x >> 4; if (y) { n -= 4; x = y; }
+	y = x >> 2; if (y) { n -= 2; x = y; }
+	y = x >> 1; if (y) return n - 2;
+	return n - x;
+}
+int clz16(uint16_t x)
+{
+	uint16_t y;
+	int n;
+
+	n = 16;
+	y = x >> 8; if (y) { n -= 8; x = y; }
+	y = x >> 4; if (y) { n -= 4; x = y; }
+	y = x >> 2; if (y) { n -= 2; x = y; }
+	y = x >> 1; if (y) return n - 2;
+	return n - x;
+}
+int clz32(uint32_t x)
+{
+	uint32_t y;
+	int n;
+
+	n = 32;
+	y = x >> 16; if (y) { n -= 16; x = y; }
+	y = x >>  8; if (y) { n -=  8; x = y; }
+	y = x >>  4; if (y) { n -=  4; x = y; }
+	y = x >>  2; if (y) { n -=  2; x = y; }
+	y = x >>  1; if (y) return n - 2;
+	return n - x;
+}
+int clz64(uint64_t x)
+{
+	uint64_t y;
+	int n;
+
+	n = 64;
+	y = x >> 32; if (y) { n -= 32; x = y; }
+	y = x >> 16; if (y) { n -= 16; x = y; }
+	y = x >>  8; if (y) { n -=  8; x = y; }
+	y = x >>  4; if (y) { n -=  4; x = y; }
+	y = x >>  2; if (y) { n -=  2; x = y; }
+	y = x >>  1; if (y) return n - 2;
+	return n - x;
+}
+
+#define ctz8(x)  (8  - clz8 (~(x) & ((x)-1)))
+#define ctz16(x) (16 - clz16(~(x) & ((x)-1)))
+#define ctz32(x) (32 - clz32(~(x) & ((x)-1)))
+#define ctz64(x) (64 - clz64(~(x) & ((x)-1)))
+
 static void anyexit(int rc)
 {
 	printw("press any key to exit...");
@@ -232,6 +323,93 @@ static void fmt_sd(void *_, int width, void *_field) /* {{{ */
 		else           wprintw(l->status, "% 20s", "");
 		break;
 
+	default:
+		wprintw(l->status, "!!!");
+		break;
+	}
+} /* }}} */
+static void fmt_lz(void *_, int width, void *_field) /* {{{ */
+{
+	int left;
+	LAYOUT *l;
+
+	l = (LAYOUT*)_;
+	left = l->len - (l->offset + l->pos);
+
+	switch (width) {
+	case 8:
+		wprintw(l->status, "%i", clz8(as_u8(DATA_AT(l, l->pos))));
+		break;
+	case 16:
+		if (left >= 2) wprintw(l->status, "% 2i", clz16(as_u16(DATA_AT(l, l->pos))));
+		else           wprintw(l->status, "  ");
+		break;
+	case 32:
+		if (left >= 4) wprintw(l->status, "% 2i", clz32(as_u32(DATA_AT(l, l->pos))));
+		else           wprintw(l->status, "  ");
+		break;
+	case 64:
+		if (left >= 4) wprintw(l->status, "% 2i", clz64(as_u64(DATA_AT(l, l->pos))));
+		else           wprintw(l->status, "  ");
+		break;
+	default:
+		wprintw(l->status, "!!!");
+		break;
+	}
+} /* }}} */
+static void fmt_tz(void *_, int width, void *_field) /* {{{ */
+{
+	int left;
+	LAYOUT *l;
+
+	l = (LAYOUT*)_;
+	left = l->len - (l->offset + l->pos);
+
+	switch (width) {
+	case 8:
+		wprintw(l->status, "%i", ctz8(as_u8(DATA_AT(l, l->pos))));
+		break;
+	case 16:
+		if (left >= 2) wprintw(l->status, "% 2i", ctz16(as_u16(DATA_AT(l, l->pos))));
+		else           wprintw(l->status, "  ");
+		break;
+	case 32:
+		if (left >= 4) wprintw(l->status, "% 2i", ctz32(as_u32(DATA_AT(l, l->pos))));
+		else           wprintw(l->status, "  ");
+		break;
+	case 64:
+		if (left >= 4) wprintw(l->status, "% 2i", ctz64(as_u64(DATA_AT(l, l->pos))));
+		else           wprintw(l->status, "  ");
+		break;
+	default:
+		wprintw(l->status, "!!!");
+		break;
+	}
+} /* }}} */
+static void fmt_p(void *_, int width, void *_field) /* {{{ */
+{
+	int left;
+	LAYOUT *l;
+
+	l = (LAYOUT*)_;
+	left = l->len - (l->offset + l->pos);
+
+	switch (width) {
+	case 8:
+		wprintw(l->status, "%i", pop8(as_u8(DATA_AT(l, l->pos))));
+		break;
+	case 16:
+		if (left >= 2) wprintw(l->status, "% 2i", pop16(as_u16(DATA_AT(l, l->pos))));
+		else           wprintw(l->status, "  ");
+		break;
+	case 32:
+		if (left >= 4) wprintw(l->status, "% 2i", pop32(as_u32(DATA_AT(l, l->pos))));
+		else           wprintw(l->status, "  ");
+		break;
+	case 64:
+		if (left >= 4) wprintw(l->status, "% 2i", pop64(as_u64(DATA_AT(l, l->pos))));
+		else           wprintw(l->status, "  ");
+		break;
 	default:
 		wprintw(l->status, "!!!");
 		break;
@@ -473,6 +651,17 @@ int parse_status(const char *s, FIELD *fields)
 			if (fields) fields[nfields].fmt = fmt_sd;
 			break;
 
+		case 'z':
+			b++;
+			switch (*b) {
+			case 'l': if (fields) fields[nfields].fmt = fmt_lz; break;
+			case 't': if (fields) fields[nfields].fmt = fmt_tz; break;
+			default:
+				printw("invalid format code '%%%dz%c'\n", w, *b);
+				return -1;
+			}
+			break;
+
 		case 'x': if (fields) fields[nfields].fmt = fmt_x; break;
 		case 'f': if (fields) fields[nfields].fmt = fmt_f; break;
 		case 'e': if (fields) fields[nfields].fmt = fmt_e; break;
@@ -483,6 +672,7 @@ int parse_status(const char *s, FIELD *fields)
 		case 'F': if (fields) fields[nfields].fmt = fmt_F; break;
 		case 'P': if (fields) fields[nfields].fmt = fmt_P; break;
 		case 'T': if (fields) fields[nfields].fmt = fmt_T; break;
+		case 'p': if (fields) fields[nfields].fmt = fmt_p; break;
 
 		case 't':
 		case 'C':

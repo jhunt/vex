@@ -142,6 +142,18 @@ Currently defined format specificers:
        or float64 (N=64) floating point number, and printed in
        scientific notation (d.dddddeD).
 
+  %lz  Interpret the next N bits as an unsigned integer, and
+       count the number of leading zero bits.  Valid values for
+       N are 8, 16, 32, and 64.
+
+  %tz  Interpret the next N bits as an unsigned integer, and
+       count the number of trailing zero bits.  Valid values for
+       N are 8, 16, 32, and 64.
+
+  %p   Interpret the next N bits as an unsigned integer, and
+       count the number of bits that are set.  Valid values for
+       N are 8, 16, 32, and 64.
+
   %E   Print the host platform endianness.  Field width controls
        the exact value printed.  N=1 yields 'L' (little endian)
        or 'B' (big endian).  N=2 yields 'LE' or 'BE', N=3 gives
