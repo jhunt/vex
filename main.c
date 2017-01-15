@@ -17,6 +17,28 @@
 /* formatting constants {{{ */
 #define GUTTER 5
 /* }}} */
+/* colors {{{ */
+#define C_NORMAL_IDX 1
+#define C_NORMAL COLOR_PAIR(C_NORMAL_IDX)
+
+#define C_CURSOR_IDX 2
+#define C_CURSOR COLOR_PAIR(C_CURSOR_IDX)
+
+#define C_STATUS_IDX 3
+#define C_STATUS COLOR_PAIR(C_STATUS_IDX) | A_BOLD
+
+#define C_ERROR_IDX 4
+#define C_ERROR COLOR_PAIR(C_ERROR_IDX) | A_BOLD
+
+static void the_colors()
+{
+	start_color();
+	init_pair(C_NORMAL_IDX, COLOR_WHITE, COLOR_BLACK);
+	init_pair(C_CURSOR_IDX, COLOR_BLACK, COLOR_WHITE);
+	init_pair(C_STATUS_IDX, COLOR_GREEN, COLOR_BLACK);
+	init_pair(C_ERROR_IDX,  COLOR_WHITE, COLOR_RED);
+}
+/* }}} */
 /* TYPES {{{ */
 typedef struct {
 	char *layout;
@@ -185,27 +207,20 @@ int cfgcol(LAYOUT *l, COLUMN *c, prcell_fn pr, int x, int width, int space)
 	return c->width * l->width + GUTTER - space;
 }
 
-/* }}} */
-/* colors {{{ */
-#define C_NORMAL_IDX 1
-#define C_NORMAL COLOR_PAIR(C_NORMAL_IDX)
-
-#define C_CURSOR_IDX 2
-#define C_CURSOR COLOR_PAIR(C_CURSOR_IDX)
-
-#define C_STATUS_IDX 3
-#define C_STATUS COLOR_PAIR(C_STATUS_IDX) | A_BOLD
-
-#define C_ERROR_IDX 4
-#define C_ERROR COLOR_PAIR(C_ERROR_IDX) | A_BOLD
-
-static void the_colors()
+void errorf(LAYOUT * l, const char *msg, ...)
 {
-	start_color();
-	init_pair(C_NORMAL_IDX, COLOR_WHITE, COLOR_BLACK);
-	init_pair(C_CURSOR_IDX, COLOR_BLACK, COLOR_WHITE);
-	init_pair(C_STATUS_IDX, COLOR_GREEN, COLOR_BLACK);
-	init_pair(C_ERROR_IDX,  COLOR_WHITE, COLOR_RED);
+	va_list ap;
+
+	wattron(l->command, C_ERROR);
+	werase(l->command);
+	wmove(l->command, 0, 0);
+
+	va_start(ap, msg);
+	vwprintw(l->command, msg, ap);
+	va_end(ap);
+
+	wattroff(l->command, C_ERROR);
+	wrefresh(l->command);
 }
 /* }}} */
 
@@ -592,6 +607,7 @@ static void fmt_e(void *_, int width, void *_field) /* {{{ */
 	}
 } /* }}} */
 
+/* status bar functions {{{ */
 int parse_status(const char *s, FIELD *fields)
 {
 	int nfields, w;
@@ -704,6 +720,8 @@ void statusbar(LAYOUT *l)
 	wnoutrefresh(l->status);
 }
 
+/* }}} */
+/* configuration functions {{{ */
 FILE *find_config()
 {
 	FILE *io;
@@ -792,21 +810,44 @@ CONFIG* configure()
 	return c;
 }
 
-void errorf(LAYOUT * l, const char *msg, ...)
+static uint8_t * mapfile(const char *path, size_t *len)
 {
-	va_list ap;
+	int fd;
+	void *addr;
 
-	wattron(l->command, C_ERROR);
-	werase(l->command);
-	wmove(l->command, 0, 0);
+	if (!len) {
+		printw("BUG: mapfile() called with NULL len argument.\n");
+		anyexit(1);
+	}
 
-	va_start(ap, msg);
-	vwprintw(l->command, msg, ap);
-	va_end(ap);
+	fd = open(path, O_RDONLY);
+	if (fd < 0) {
+		printw("ERROR: %s\n", strerror(errno));
+		anyexit(1);
+	}
 
-	wattroff(l->command, C_ERROR);
-	wrefresh(l->command);
+	*len = lseek(fd, 0, SEEK_END);
+	addr = mmap(NULL, *len, PROT_READ, MAP_PRIVATE, fd, 0);
+	if (addr == MAP_FAILED) {
+		printw("ERROR: %s\n", strerror(errno));
+		anyexit(1);
+	}
+
+	return addr;
 }
+
+int lopen(LAYOUT *l, const char *path)
+{
+	l->data = mapfile(path, &(l->len));
+	if (!l->data) return 0; /* failed */
+
+	l->path = strdup(path);
+	l->file = strrchr(l->path, '/');
+	if (l->file) l->file++;
+	else l->file = l->path;
+	return 1;
+}
+/* }}} */
 
 LAYOUT* layout(CONFIG *c, int width)
 {
@@ -857,6 +898,7 @@ LAYOUT* layout(CONFIG *c, int width)
 	return l;
 }
 
+/* drawing functions {{{ */
 void draw(LAYOUT *l)
 {
 	int i, j, max;
@@ -879,7 +921,8 @@ void draw(LAYOUT *l)
 	statusbar(l);
 	doupdate();
 }
-
+/* }}} */
+/* movement functions {{{ */
 void lpage(LAYOUT *l, int delta)
 {
 	int page = l->width * l->main_height;
@@ -950,45 +993,8 @@ void lmove(LAYOUT *l, int delta)
 	statusbar(l);
 	doupdate();
 }
-
-static uint8_t * mapfile(const char *path, size_t *len)
-{
-	int fd;
-	void *addr;
-
-	if (!len) {
-		printw("BUG: mapfile() called with NULL len argument.\n");
-		anyexit(1);
-	}
-
-	fd = open(path, O_RDONLY);
-	if (fd < 0) {
-		printw("ERROR: %s\n", strerror(errno));
-		anyexit(1);
-	}
-
-	*len = lseek(fd, 0, SEEK_END);
-	addr = mmap(NULL, *len, PROT_READ, MAP_PRIVATE, fd, 0);
-	if (addr == MAP_FAILED) {
-		printw("ERROR: %s\n", strerror(errno));
-		anyexit(1);
-	}
-
-	return addr;
-}
-
-int lopen(LAYOUT *l, const char *path)
-{
-	l->data = mapfile(path, &(l->len));
-	if (!l->data) return 0; /* failed */
-
-	l->path = strdup(path);
-	l->file = strrchr(l->path, '/');
-	if (l->file) l->file++;
-	else l->file = l->path;
-	return 1;
-}
-
+/* }}} */
+/* searching functions {{{ */
 int query(LAYOUT *l, char type, char *buf, size_t len)
 {
 	WINDOW *win;
@@ -1096,6 +1102,7 @@ void rsearch(LAYOUT *l, char *pat)
 
 	errorf(l, "Pattern not found: %s", pat);
 }
+/* }}} */
 
 int main(int argc, char **argv)
 {
