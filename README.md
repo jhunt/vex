@@ -14,6 +14,18 @@ Pretty simple, really.  Tell `vex` what file you want to explore:
 $ vex /bin/ls
 ```
 
+Movement follows what you're accustomed to as a Vim user:
+
+```
+  h,j,k,l    Move one octet in any direction. Arrow keys also work.
+  <N>(+-)    Move forward (+) or backward (-) N octets.
+  Ctrl-U     Page up, with context where appropriate.
+  Ctrl-D     Page down, with context where appropriate.
+
+  <N><m>     Move N octets in any direction, m.  Try 4+ or 2j.
+             Doesn't work with arrow keys.
+```
+
 Configuration
 -------------
 
