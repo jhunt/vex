@@ -112,6 +112,11 @@ Currently defined format specificers:
        or float64 (N=64) floating point number, and printed in
        decimal formatting (dd.dddd).
 
+  %T   Interpret the next 32 bits as an unsigned integer, and
+       treat that value as a UNIX epoch timestamp (seconds since
+       Jan 1 1970 UTC), and print a human-readable date.  Handy
+       for finding those embedded timestamps!
+
   %e   Interpret the next N bits as an IEEE-754 float32(N=32)
        or float64 (N=64) floating point number, and printed in
        scientific notation (d.dddddeD).

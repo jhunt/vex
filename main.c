@@ -1,6 +1,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <time.h>
 #include <ncurses.h>
 #include <string.h>
 #include <stdlib.h>
@@ -319,6 +320,39 @@ static void fmt_P(void *_, int width, void *_field)
 	wprintw(l->status, "%s", l->path);
 }
 
+static void fmt_T(void *_, int width, void *_field)
+{
+	int left, i;
+	LAYOUT *l;
+	char *s, *p;
+	time_t t;
+
+	l = (LAYOUT *)_;
+	left = l->len - (l->offset + l->pos);
+
+	if (left >= 4) {
+		//Wed Jun 30 21:49:08 1993\n
+		t = as_u32(DATA_AT(l, l->pos));
+		s = ctime(&t);
+		if (s) {
+			p = strchr(s, '\n');
+			if (p) *p = '\0';
+			wprintw(l->status, "%24s", s);
+		} else {
+			wprintw(l->status, "%24s", "-");
+		}
+	}
+	for (i = 0; i < width; i++) {
+		if (i != 0) waddch(l->status, ' ');
+		if (i > left) {
+			waddch(l->status, ' ');
+			waddch(l->status, ' ');
+		} else {
+			wprintw(l->status, "%02x", as_u8(DATA_AT(l, l->pos + i)));
+		}
+	}
+}
+
 static void fmt_x(void *_, int width, void *_field)
 {
 	int left, i;
@@ -454,6 +488,7 @@ int parse_status(const char *s, FIELD *fields)
 		case 'l': if (fields) fields[nfields].fmt = fmt_l; break;
 		case 'F': if (fields) fields[nfields].fmt = fmt_F; break;
 		case 'P': if (fields) fields[nfields].fmt = fmt_P; break;
+		case 'T': if (fields) fields[nfields].fmt = fmt_T; break;
 
 		case 't':
 		case 'C':
