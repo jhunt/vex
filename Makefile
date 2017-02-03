@@ -1,11 +1,13 @@
-LDLIBS := -lncurses
 CFLAGS := -g -Wall
 
-all: vex
+all: vex vexcc
 clean:
-	rm -f *.o main
+	rm -f *.o vex vexcc
 
 vex: main.o
-	$(CC) $< $(LDLIBS) -o $@
+	$(CC) $< -lncurses -o $@
+
+vexcc: syn.o
+	$(CC) $< -o $@
 
 .PHONY: all clean

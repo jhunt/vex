@@ -1,0 +1,39 @@
+# example.syn
+# vex Syntax Highlight Example
+#
+
+
+b0 10 "SG" blue {
+  +2 green;
+  +4 magenta;
+  +8;
+  +8 white/blue;
+  +2 blue;
+  "BLMF" {
+    +2 green;
+    +4 yellow;
+    &2;
+    +2 magenta;
+  }
+  "DATA" {
+    +4 blue;
+    &1;
+    +2 magenta;
+  }
+}
+
+17 "VSB" yellow {
+  +1;
+  +4 green;
+  {
+    +4 blue;
+    +4 cyan;
+    +2 magenta;
+    &3 green;
+    +1;
+    {
+      +2 yellow;
+      +1;
+    }
+  }
+}

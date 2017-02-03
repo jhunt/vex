@@ -45,6 +45,23 @@ typedef struct {
 	char *status;
 } CONFIG;
 
+typedef struct {
+	uint16_t width;
+	uint8_t color;
+} RULE;
+typedef struct __syntax SYNTAX;
+struct __syntax {
+	int      patlen;
+	uint8_t *pattern;
+	uint8_t  color;
+
+	int      nsubs;
+	SYNTAX **subs;
+
+	int      nrules;
+	RULE     rules[];
+};
+
 typedef void (*prcell_fn)(WINDOW *w, uint8_t v);
 typedef struct {
 	WINDOW     *win;
@@ -1104,6 +1121,83 @@ void rsearch(LAYOUT *l, char *pat)
 }
 /* }}} */
 
+SYNTAX* read_syntax_rule(uint8_t *raw, size_t len)
+{
+	uint32_t n;
+	size_t offset = 0;
+	SYNTAX *syn;
+
+	n = *(uint32_t *)(raw + offset);
+	syn = calloc(1, sizeof(SYNTAX) + n * sizeof(RULE));
+	if (!syn) return NULL;
+	syn->nrules = n;
+	offset += 4;
+
+	n = *(uint32_t *)(raw + offset);
+	syn->nsubs = n;
+	syn->subs = calloc(n, sizeof(SYNTAX*));
+	offset += 4;
+
+	len = (*(uint16_t *)(raw + offset));
+	offset += 2;
+	syn->patlen = len;
+	syn->pattern = calloc(len, sizeof(char));
+	memcpy(syn->pattern, raw + offset, len);
+	offset += len;
+
+	syn->color = *(raw + offset);
+	offset++;
+
+	for (n = 0; n < syn->nrules; n++) {
+		syn->rules[n].width = *(uint16_t *)(raw + offset);
+		syn->rules[n].color =             *(raw + offset + 2);
+		offset += 3;
+	}
+
+	for (n = 0; n < syn->nsubs; n++) {
+		syn->subs[n] = read_syntax_rule(raw + offset, len - offset);
+	}
+
+	return syn;
+}
+
+SYNTAX** read_syntax(const char *path, uint32_t *n)
+{
+	int fd;
+	unsigned int i, off;
+	SYNTAX **syn;
+	uint8_t *raw;
+	size_t len;
+
+	fd = open(path, O_RDONLY);
+	if (!fd) {
+		return NULL;
+	}
+
+	len = lseek(fd, 0, SEEK_END);
+	raw = mmap(NULL, len, PROT_READ, MAP_PRIVATE, fd, 0);
+	if (raw == MAP_FAILED) {
+		return NULL;
+	}
+
+	if (memcmp(raw, "\x17VSB\1", 5) != 0) {
+		return NULL;
+	}
+
+	off = 5;
+	*n = *(uint32_t *)(raw + off);
+	syn = calloc((size_t)n, sizeof(SYNTAX*));
+	if (!syn) {
+		return NULL;
+	}
+	off += 4;
+
+	for (i = 0; i < *n; i++) {
+		syn[i] = read_syntax_rule(raw + off, len - off);
+	}
+	return syn;
+}
+
 int main(int argc, char **argv)
 {
 	LAYOUT *l;
@@ -1120,6 +1214,13 @@ int main(int argc, char **argv)
 	curs_set(0);
 	the_colors();
 	refresh();
+
+	uint32_t n;
+	SYNTAX **s = read_syntax("syntax.bin", &n);
+	if (!s) {
+		//printw("failed to read syntax.\n");
+	//	anyexit(1);
+	}
 
 	l = layout(configure(), 16);
 	if (!l) {
