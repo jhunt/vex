@@ -963,7 +963,7 @@ void lmove(LAYOUT *l, int delta)
 	if (delta == 0 || new < 0) return;
 
 	new = l->pos + delta;
-	max = l->main_height * l->width;
+	max = (l->main_height - 1) * l->width;
 	if (new < 0 || new >= max) {
 		while (new < 0 && l->offset >= l->width) { /* page up */
 			l->offset -= l->width;
