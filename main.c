@@ -746,6 +746,9 @@ FILE *find_config()
 	return fopen(CONFIG_SYSFILE, "r");
 }
 
+#define DEFAULT_LAYOUT "Xa"
+#define DEFAULT_STATUS "vex [%1E] +%o/%l %F ... b[ %64b ]"
+
 CONFIG* configure()
 {
 	FILE *io;
@@ -756,8 +759,8 @@ CONFIG* configure()
 	c = calloc(1, sizeof(CONFIG));
 	io = find_config();
 	if (!io) {
-		c->layout = strdup("Xa");
-		c->status = strdup("vex [%1E] +%o/%l %F ... b[ %64b ]");
+		c->layout = strdup(DEFAULT_LAYOUT);
+		c->status = strdup(DEFAULT_STATUS);
 		return c;
 	}
 
@@ -807,6 +810,9 @@ CONFIG* configure()
 	}
 
 	fclose(io);
+
+	if (!c->layout) c->layout = strdup(DEFAULT_LAYOUT);
+	if (!c->status) c->status = strdup(DEFAULT_STATUS);
 	return c;
 }
 
