@@ -5,6 +5,8 @@ vex - A vim-like Hex Editor
 you _edit_ binary files as _explore_ them.  That is, it definitely
 doesn't let you change the files, but who needs that featureset?
 
+![(screenshot)](screen.png)
+
 Usage
 -----
 
