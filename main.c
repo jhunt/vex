@@ -304,7 +304,7 @@ static void fmt_ud(void *_, int width, void *_field) /* {{{ */
 		break;
 
 	case 64:
-		if (left >= 8) wprintw(l->status, "% 20u", as_u64(DATA_AT(l, l->pos)));
+		if (left >= 8) wprintw(l->status, "% 20lu", as_u64(DATA_AT(l, l->pos)));
 		else           wprintw(l->status, "% 20s", "");
 		break;
 
@@ -336,7 +336,7 @@ static void fmt_sd(void *_, int width, void *_field) /* {{{ */
 		break;
 
 	case 64:
-		if (left >= 8) wprintw(l->status, "% 20i", as_i64(DATA_AT(l, l->pos)));
+		if (left >= 8) wprintw(l->status, "% 20li", as_i64(DATA_AT(l, l->pos)));
 		else           wprintw(l->status, "% 20s", "");
 		break;
 
