@@ -1119,6 +1119,17 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
+	if (strcmp(argv[1], "-v") == 0) {
+#ifdef VERSION
+		printf("vex v" VERSION "\n");
+#else
+		printf("vex (development version)\n");
+#endif
+		printf("Copyright (c) 2017 James Hunt\n");
+		printf("https://jameshunt.us/code/vex\n");
+		return 0;
+	}
+
 	initscr();
 	cbreak();
 	keypad(stdscr, TRUE); /* for the arrow keys */
